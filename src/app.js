@@ -10,13 +10,15 @@ app.get("/", (req, res) => {
 
 // GET DOS POSTS
 
-app.get("/post", async (req, res) => {
+app.get("/posts", async (req, res) => {
   try {
     const resultado = await pool.query(`
         SELECT
+            usuarios.id AS usuarios_id,
             usuarios.nome,
             post.conteudo,
-            post.criado_em
+            post.criado_em,
+            post.id AS post_id
         FROM post
         JOIN usuarios
         ON post.usuario_id = usuarios.id
@@ -25,6 +27,29 @@ app.get("/post", async (req, res) => {
     res.json(resultado.rows);
   } catch (erro) {
     res.status(500).json({ erro: "Erro ao buscar postagens" });
+  }
+});
+
+// Criando a Rota POST
+app.post("/posts", async (req, res) => {
+  try {
+    const { titulo, conteudo, usuario_id } = req.body;
+    const resultado = await pool.query(
+      `
+      INSERT INTO post (titulo, conteudo, usuario_id)
+      VALUES ($1, $2, $3)
+      RETURNING *
+      `,
+      [titulo, conteudo, usuario_id],
+    );
+    res.status(201).json({
+      mensagem: "Post criado com sucesso",
+      post: resultado.rows[0],
+    });
+  } catch (erro) {
+    res.status(500).json({
+      erro: "Erro ao criar postagem",
+    });
   }
 });
 
