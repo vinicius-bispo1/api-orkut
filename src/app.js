@@ -5,9 +5,12 @@ const validarPost = require("./validacao/post");
 const validarUsuarios = require("./validacao/usuarios");
 const jwt = require("jsonwebtoken");
 const auth = require("./auth/authLogin");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 function formatarData(data) {
   return new Date(data).toLocaleString("pt-BR", {
@@ -19,13 +22,16 @@ function formatarData(data) {
 app.post("/usuarios", validarUsuarios, async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+
     const resultado = await pool.query(
       `
       INSERT INTO usuarios (nome, email, senha)
       VALUES ($1, $2, $3)
       RETURNING *
     `,
-      [nome, email, senha],
+      [nome, email, senhaHash],
     );
     res.status(201).json({
       mensagem: "Usuário criado com sucesso",
@@ -52,7 +58,9 @@ app.post("/login", async (req, res) => {
     return res.status(400).json({ mensagem: "Usuário não encontrado" });
   }
 
-  if (senha !== usuario.rows[0].senha) {
+  const senhaValida = await bcrypt.compare(senha, usuario.rows[0].senha);
+
+  if (!senhaValida) {
     return res.status(400).json({ mensagem: "Senha inválida" });
   }
 
@@ -134,10 +142,20 @@ app.post("/posts", auth, validarPost, async (req, res) => {
 
 //  Criado rota PUT - Atualização
 
-app.put("/posts/:id", validarPost, async (req, res) => {
+app.put("/posts/:id", auth, validarPost, async (req, res) => {
   try {
     const { id } = req.params;
     const { titulo, conteudo } = req.body;
+
+    const post = await pool.query(`SELECT * FROM post WHERE id=$1`, [id]);
+
+    if (post.rows.length === 0) {
+      return res.status(404).json({ mensagem: "Post não encontrado" });
+    }
+
+    if (post.rows[0].usuario_id !== req.usuario.id) {
+      return res.status(403).json({ mensagem: "Sem permissão" });
+    }
 
     const resultado = await pool.query(
       `UPDATE post SET titulo=$1, conteudo=$2 WHERE id=$3 RETURNING *`,
@@ -155,9 +173,19 @@ app.put("/posts/:id", validarPost, async (req, res) => {
 });
 
 // ROTA DELETE
-app.delete("/posts/:id", async (req, res) => {
+app.delete("/posts/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
+
+    const post = await pool.query(`SELECT * FROM post WHERE id=$1`, [id]);
+
+    if (post.rows.length === 0) {
+      return res.status(404).json({ mensagem: "Post não encontrado" });
+    }
+
+    if (post.rows[0].usuario_id !== req.usuario.id) {
+      return res.status(403).json({ mensagem: "Sem permissão" });
+    }
 
     const resultado = await pool.query(
       `DELETE FROM post WHERE id=$1 RETURNING *`,
