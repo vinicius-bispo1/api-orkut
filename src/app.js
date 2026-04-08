@@ -67,8 +67,7 @@ app.post("/login", async (req, res) => {
   const token = jwt.sign({ id: usuario.rows[0].id }, process.env.JWT_SECRET, {
     expiresIn: "1h",
   });
-  // retirar antes de subir
-  console.log("Login Secreto", process.env.JWT_SECRET);
+
   res.json({ token });
 });
 

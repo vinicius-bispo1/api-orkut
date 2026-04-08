@@ -11,7 +11,7 @@ const auth = (req, res, next) => {
     const decoded = jwt.verify(token.split(" ")[1], process.env.JWT_SECRET);
 
     req.usuario = decoded;
-    console.log(req.usuario);
+
     next();
   } catch (erro) {
     return res.status(401).json({ mensagem: "Token invalido" });
