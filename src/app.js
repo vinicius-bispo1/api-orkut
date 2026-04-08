@@ -63,7 +63,7 @@ app.post("/login", async (req, res) => {
   if (!senhaValida) {
     return res.status(400).json({ mensagem: "Senha inválida" });
   }
-  console.log();
+  console.log("oi");
   const token = jwt.sign({ id: usuario.rows[0].id }, process.env.JWT_SECRET, {
     expiresIn: "1h",
   });
